@@ -1,0 +1,73 @@
+# docker-compose.yml
+version: '3'
+
+services:
+
+  proxy:
+    image: nginx
+    container_name: nextcloud-nginx
+    networks:
+      - nextcloud_network
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - ./nginx:/etc/nginx
+      - ./ssl/private:/etc/ssl/private
+    restart: unless-stopped
+
+  letsencrypt:
+    image: linuxserver/swag
+    container_name: nextcloud-letsencrypt
+    depends_on:
+      - proxy
+    networks:
+      - nextcloud_network
+    restart: unless-stopped
+
+  redis:
+    image: redis
+    container_name: nextcloud-redis
+    networks:
+      - nextcloud_network
+    env_file: 
+      - conf.env
+    hostname: redis
+    restart: unless-stopped
+  
+  db:
+    image: postgres
+    container_name: nextcloud-postgres
+    networks:
+      - nextcloud_network
+    env_file: 
+      - conf.env
+    volumes:
+      - ./nextcloud-data-db:/var/lib/postgres
+    restart: unless-stopped
+
+  nextcloud:
+    image: nextcloud
+    container_name: nextcloud-app
+    depends_on:
+      - db
+      - proxy
+      - redis
+    networks:
+      - nextcloud_network
+    ports:
+     - "8484:80"
+    links:
+      - db
+    env_file: 
+      - conf.env
+    volumes:
+      - ./nextcloud-data:/var/www/html
+    restart: unless-stopped
+
+volumes:
+  nextcloud-data:
+  nextcloud-data-db:
+
+networks:
+  nextcloud_network:
